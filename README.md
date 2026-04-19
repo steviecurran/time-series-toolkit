@@ -63,7 +63,7 @@ Forecast accuracy depends heavily on market conditions. Even well-performing mod
 
 **Note**
 
-By default the notebook will run a demo using *AirPassengers.csv* with limited interactivity. To run with full interactivity change
+By default the notebook (*TS.ipynb*) will run a demo using *AirPassengers.csv* with limited interactivity. To run with full interactivity change
 
 	 USE_DEFAULTS = True
 	 to
