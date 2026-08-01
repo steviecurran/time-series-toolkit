@@ -1,0 +1,22 @@
+In src/forecasting.py, inside make_forecast_plot(), replace the
+back-test forecast-label block:
+
+    if actual_test is not None:
+
+        forecast_label += (
+            f" ⇒ RMSE = {rmse:.2f}, "
+            f"NPD = {npd:.2f}%"
+        )
+
+with:
+
+    if actual_test is not None:
+
+        forecast_label += (
+            f" ⇒ RMSE = {rmse:.2f}, "
+            f"historical NRMSE = {npd:.1f}%"
+        )
+
+The app still passes the second metric through the existing `npd` parameter
+to avoid changing the function signature. After this small edit, the plot
+legend will use the correct name.

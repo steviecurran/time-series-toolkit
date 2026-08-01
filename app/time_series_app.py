@@ -14,6 +14,220 @@ import src.forecasting as ts
 
 DATA_DIR = PROJECT_ROOT / "data"
 
+
+def calculate_backtest_metrics(
+    train_series: pd.Series,
+    actual_series: pd.Series,
+    forecast_series: pd.Series,
+) -> dict:
+    """
+    Calculate complementary back-test metrics.
+
+    Historical NRMSE scales RMSE by the median range of rolling historical
+    windows with the same length as the test period. This is more informative
+    than scaling by the mean when the series contains peaks and troughs.
+    """
+
+    actual = np.asarray(
+        actual_series,
+        dtype=float,
+    )
+
+    forecast = np.asarray(
+        forecast_series,
+        dtype=float,
+    )
+
+    valid = (
+        np.isfinite(actual)
+        & np.isfinite(forecast)
+    )
+
+    actual = actual[valid]
+    forecast = forecast[valid]
+
+    if len(actual) == 0:
+        raise ValueError(
+            "No valid actual and forecast pairs "
+            "are available for evaluation."
+        )
+
+    errors = forecast - actual
+
+    rmse = float(
+        np.sqrt(
+            np.mean(errors ** 2)
+        )
+    )
+
+    mae = float(
+        np.mean(
+            np.abs(errors)
+        )
+    )
+
+    horizon = len(actual)
+
+    historical_values = np.asarray(
+        train_series,
+        dtype=float,
+    )
+
+    historical_ranges = []
+
+    if len(historical_values) >= horizon:
+
+        for start in range(
+            len(historical_values)
+            - horizon
+            + 1
+        ):
+
+            window = historical_values[
+                start:start + horizon
+            ]
+
+            window = window[
+                np.isfinite(window)
+            ]
+
+            if len(window) > 1:
+
+                window_range = float(
+                    np.max(window)
+                    - np.min(window)
+                )
+
+                if window_range > 0:
+                    historical_ranges.append(
+                        window_range
+                    )
+
+    if historical_ranges:
+
+        typical_historical_range = float(
+            np.median(
+                historical_ranges
+            )
+        )
+
+        historical_nrmse = (
+            100.0
+            * rmse
+            / typical_historical_range
+        )
+
+    else:
+
+        typical_historical_range = np.nan
+        historical_nrmse = np.nan
+
+    naive_forecast = np.repeat(
+        float(train_series.iloc[-1]),
+        horizon,
+    )
+
+    naive_rmse = float(
+        np.sqrt(
+            np.mean(
+                (
+                    naive_forecast
+                    - actual
+                ) ** 2
+            )
+        )
+    )
+
+    if naive_rmse > 0:
+
+        skill_score = (
+            100.0
+            * (
+                1.0
+                - rmse / naive_rmse
+            )
+        )
+
+    else:
+
+        skill_score = np.nan
+
+    actual_with_origin = np.concatenate(
+        (
+            [
+                float(
+                    train_series.iloc[-1]
+                )
+            ],
+            actual,
+        )
+    )
+
+    forecast_with_origin = np.concatenate(
+        (
+            [
+                float(
+                    train_series.iloc[-1]
+                )
+            ],
+            forecast,
+        )
+    )
+
+    actual_direction = np.sign(
+        np.diff(actual_with_origin)
+    )
+
+    forecast_direction = np.sign(
+        np.diff(forecast_with_origin)
+    )
+
+    direction_accuracy = float(
+        100.0
+        * np.mean(
+            actual_direction
+            == forecast_direction
+        )
+    )
+
+    actual_range = float(
+        np.max(actual)
+        - np.min(actual)
+    )
+
+    forecast_range = float(
+        np.max(forecast)
+        - np.min(forecast)
+    )
+
+    if actual_range > 0:
+
+        variation_captured = (
+            100.0
+            * forecast_range
+            / actual_range
+        )
+
+    else:
+
+        variation_captured = np.nan
+
+    return {
+        "rmse": rmse,
+        "mae": mae,
+        "typical_historical_range":
+            typical_historical_range,
+        "historical_nrmse_percent":
+            historical_nrmse,
+        "naive_rmse": naive_rmse,
+        "skill_score_percent":
+            skill_score,
+        "direction_accuracy_percent":
+            direction_accuracy,
+        "variation_captured_percent":
+            variation_captured,
+    }
+
 st.set_page_config(
     page_title="Time Series Forecasting Toolkit",
     page_icon="📈",
@@ -765,34 +979,161 @@ st.markdown(
     f"{forecast_length} {frequency_name}"
 )
 
-metric_columns = st.columns(2)
+backtest_metrics = None
 
+if result["actual_test"] is not None:
 
-if forecast_or_test == "Test":
+    backtest_metrics = (
+        calculate_backtest_metrics(
+            train_series=result["train"],
+            actual_series=result[
+                "actual_test"
+            ],
+            forecast_series=result[
+                "forecast"
+            ],
+        )
+    )
 
-    if result["npd"] < 5:
+    metric_columns = st.columns(4)
+
+    metric_columns[0].metric(
+        "RMSE",
+        f"{backtest_metrics['rmse']:.4f}",
+        help=(
+            "Root mean squared error in the "
+            "original units of the series."
+        ),
+    )
+
+    metric_columns[1].metric(
+        "Historical NRMSE",
+        (
+            f"{backtest_metrics['historical_nrmse_percent']:.1f}%"
+            if np.isfinite(
+                backtest_metrics[
+                    "historical_nrmse_percent"
+                ]
+            )
+            else "Not available"
+        ),
+        help=(
+            "RMSE divided by the median range of "
+            "historical windows with the same length "
+            "as the back-test period."
+        ),
+    )
+
+    metric_columns[2].metric(
+        "Skill vs naïve",
+        (
+            f"{backtest_metrics['skill_score_percent']:.1f}%"
+            if np.isfinite(
+                backtest_metrics[
+                    "skill_score_percent"
+                ]
+            )
+            else "Not available"
+        ),
+        help=(
+            "Improvement in RMSE relative to a "
+            "last-observation forecast. Positive is "
+            "better than naïve; negative is worse."
+        ),
+    )
+
+    metric_columns[3].metric(
+        "Direction accuracy",
+        (
+            f"{backtest_metrics['direction_accuracy_percent']:.1f}%"
+        ),
+        help=(
+            "Percentage of test steps for which the "
+            "forecast predicts the correct direction "
+            "of change."
+        ),
+    )
+
+    skill = backtest_metrics[
+        "skill_score_percent"
+    ]
+
+    direction = backtest_metrics[
+        "direction_accuracy_percent"
+    ]
+
+    variation = backtest_metrics[
+        "variation_captured_percent"
+    ]
+
+    if (
+        np.isfinite(skill)
+        and skill > 0
+        and direction >= 60
+    ):
 
         colour = "#1e7e34"
         icon = "✅"
-        accuracy = "Excellent"
+        assessment = (
+            "Improves on the naïve baseline and "
+            "captures direction reasonably well"
+        )
 
-    elif result["npd"] < 10:
-
-        colour = "#198754"
-        icon = "🟢"
-        accuracy = "Good"
-
-    elif result["npd"] < 20:
+    elif (
+        np.isfinite(skill)
+        and skill > 0
+    ):
 
         colour = "#d39e00"
         icon = "🟡"
-        accuracy = "Reasonable"
+        assessment = (
+            "Improves on the naïve baseline, but "
+            "shape alignment is mixed"
+        )
 
     else:
 
         colour = "#c82333"
         icon = "🔴"
-        accuracy = "Poor"
+        assessment = (
+            "Does not outperform the naïve baseline"
+        )
+
+    if np.isfinite(variation):
+
+        if variation < 70:
+
+            variation_message = (
+                "The forecast captures only "
+                f"{variation:.1f}% of the observed "
+                "peak-to-trough variation, suggesting "
+                "that peaks and troughs are smoothed."
+            )
+
+        elif variation > 130:
+
+            variation_message = (
+                "The forecast captures "
+                f"{variation:.1f}% of the observed "
+                "peak-to-trough variation, suggesting "
+                "that variability may be overstated."
+            )
+
+        else:
+
+            variation_message = (
+                "The forecast captures "
+                f"{variation:.1f}% of the observed "
+                "peak-to-trough variation."
+            )
+
+    else:
+
+        variation_message = (
+            "Peak-to-trough variation could not be "
+            "evaluated because the actual test range "
+            "is zero."
+        )
 
     st.markdown(
         f"""
@@ -811,12 +1152,29 @@ font-weight:700;
 color:{colour};
 margin-bottom:8px;
 ">
-{icon} {accuracy} forecasting accuracy
+{icon} {assessment}
 </div>
 
-<div style="font-size:18px;">
-<b>RMSE:</b> {result['rmse']:.4f}<br>
-<b>NPD:</b> {result['npd']:.2f}%
+<div style="font-size:17px;">
+<b>Mean absolute error:</b>
+{backtest_metrics['mae']:.4f}<br>
+
+<b>Naïve RMSE:</b>
+{backtest_metrics['naive_rmse']:.4f}<br>
+
+<b>Variation captured:</b>
+{
+    f"{variation:.1f}%"
+    if np.isfinite(variation)
+    else "Not available"
+}
+</div>
+
+<div style="
+font-size:16px;
+margin-top:10px;
+">
+{variation_message}
 </div>
 
 </div>
@@ -839,9 +1197,6 @@ else:
     )
 
 
-
-   
-
 forecast_figure = ts.make_forecast_plot(
     full_series=prepared_series,
     train_series=result["train"],
@@ -854,8 +1209,18 @@ forecast_figure = ts.make_forecast_plot(
     zoom_start=zoom_start,
     #zoom_end=zoom_end,
     value_name=value_axis_label,
-    rmse=result["rmse"],
-    npd=result["npd"],
+    rmse=(
+        backtest_metrics["rmse"]
+        if backtest_metrics is not None
+        else result["rmse"]
+    ),
+    npd=(
+        backtest_metrics[
+            "historical_nrmse_percent"
+        ]
+        if backtest_metrics is not None
+        else np.nan
+    ),
     manual_y_min=manual_y_min,
     manual_y_max=manual_y_max,
 )
@@ -922,9 +1287,14 @@ with st.expander(
 - **Back-test mode** - the model is fitted using only the historical data before the shaded region.
         The hidden observations are then compared with the model's predictions.
         
-- **RMSE** measures the average prediction error in the same units as the original data. Lower values indicate more accurate forecasts.
+- **RMSE** measures prediction error in the original units of the series and penalises large misses.
 - **NPD** is the  normalised percentage difference divides RMSE by the mean absolute
   observed value over the test period.
+- **Historical NRMSE** divides RMSE by the median peak-to-trough range of historical windows with the same length as the back-test period.
+- **Skill versus naïve** compares the model with a simple forecast that repeats the final training value. Positive skill means the model improves on that baseline.
+- **Direction accuracy** measures how often the predicted change has the same direction as the observed change.
+- **Variation captured** compares the forecast peak-to-trough range with the observed test-period range. Values much below 100% indicate over-smoothed forecasts; values much above 100% indicate exaggerated variation.
+- No single metric fully describes forecast quality, so the app reports complementary measures rather than a universal “excellent” threshold.
 """
     )
 
