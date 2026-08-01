@@ -1,124 +1,193 @@
-### Interactive Time Series Analysis Tool ##
+# Time Series Forecasting Toolkit
 
-**Motivation**
+An interactive **Streamlit application** for exploring, forecasting and backtesting time-series data.
 
-An interactive time series analysis toolkit for exploring, forecasting, and evaluating real-world data. This tool is intended for analysts and data scientists exploring time series data and evaluating forecasting approaches.
+The toolkit helps analysts and data scientists compare forecasting approaches, test model performance on historical data and interpret forecast accuracy without rebuilding analysis pipelines.
 
-This tool allows users to rapidly compare forecasting methods, test model performance on historical data  and quantify forecast accuracy — all without rerunning complex pipelines. Designed for flexibility and transparency, it supports common workflows such as resampling, filtering, and model selection across a range of time series problems.
+> The focus is not only on generating forecasts, but on understanding when they can be trusted.
 
-Local data files can be used or the latest exchange rates of major currencies. 
+## Live app
 
-The project emphasises practical forecasting: not just generating forecasts, but understanding how reliable they are in real-world scenarios.
+Add the deployed Streamlit URL here:
 
-*The focus is not just on generating forecasts, but on understanding when they can be trusted.*
+```text
+https://YOUR-APP-NAME.streamlit.app
+```
 
+## Features
 
-**Usage**
+- Load repository data, local files, URLs or live currency rates
+- Select date and value columns interactively
+- Filter datasets containing multiple time series
+- Replace zeroes with missing values when appropriate
+- Resample to days, business days, weeks, months or years
+- Compare simple, double and triple exponential smoothing, auto-ARIMA and Prophet
+- Forecast future values or backtest against held-out historical observations
+- Evaluate backtests using RMSE and normalised percentage difference (NPD)
+- Zoom the final plot by choosing how many historical observations to display
+- Adjust the y-axis automatically or manually
+- Download forecast results as CSV
+- View plain-English interpretation of methods and performance
 
-Run the notebook and follow the interactive prompts to:
+## Why this tool?
 
-1. Load data
+Forecasting models can appear accurate in-sample but perform poorly when conditions change. This application makes that gap visible through built-in backtesting and error analysis.
 
-2. Select variables
+Backtesting reserves the most recent observations, fits the model only on earlier data, and compares the predictions with values the model did not see during training.
 
-3. Choose model and forecast horizon
+## Repository structure
 
-4. Evaluate forecasts
+```text
+.
+├── app
+│   └── time_series_app.py
+├── data
+├── notebooks
+│   └── TS.ipynb
+├── src
+│   ├── __init__.py
+│   └── forecasting.py
+├── .gitignore
+├── LICENSE
+├── README.md
+└── requirements.txt
+```
 
-   
-These steps can be adjusted interactively without needing to rerun the entire pipeline.
+The original notebook is retained in `notebooks/TS.ipynb` to document the development process and underlying methodology. The Streamlit application is the main interface.
 
+## Running locally
 
-**Supported Methods**
+```bash
+git clone https://github.com/steviecurran/time-series-toolkit.git
+cd time-series-toolkit
 
-- Exponential Smoothing
-- Holt-Winters (Triple Exponential)
-- Auto-ARIMA
-- Prophet (with holiday effects)
+python3.11 -m venv .venv
+source .venv/bin/activate
 
-Additional methods can be incorporated as needed.
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 
-**Why this tool?**
+streamlit run app/time_series_app.py
+```
 
-- Quickly compare forecasting methods without rebuilding pipelines  
-- Evaluate model performance using backtesting  
-- Quantify prediction error in interpretable terms  
-- Explore real-world datasets interactively  
+## Using the application
 
-**Key Insight**
+1. Choose a data source.
+2. Select the date and value columns.
+3. Optionally filter the dataset to one category or series.
+4. Choose whether to resample the dates.
+5. Select a forecasting method and forecast horizon.
+6. Choose **Forecast** or **Test**.
+7. Run the model.
+8. Adjust the final-plot zoom without refitting the model.
+9. Review the accuracy measures and download the results.
 
-In practice, forecasting models often appear accurate in-sample but fail in real-world conditions. This tool highlights that gap through built-in backtesting and error analysis.
+## Optional filtering
 
-Forecast accuracy depends heavily on market conditions. Even well-performing models may fail to predict sudden structural changes, as demonstrated in the stock price example.
+Filtering is useful when one file contains several distinct time series.
 
-**Requirements**
+For example, `all_stocks_5yr+names.csv` contains historical prices for many companies. Selecting a company isolates that company's observations before the series is prepared and modelled.
 
-	pandas
-	numpy
-	matplotlib
-	statsmodels
-	prophet
-	ipywidgets
-	yfinance
+## Forecasting methods
 
-**Note**
+### Simple exponential smoothing
 
-By default the notebook (*TS.ipynb*) will run a demo using *AirPassengers.csv* with limited interactivity. To run with full interactivity change
+Best suited to relatively stable series without a clear trend or seasonal structure.
 
-	 USE_DEFAULTS = True
-	 to
-	 USE_DEFAULTS = False
-at the bottom of the first cell.
-	
+### Double exponential smoothing
 
+Adds a trend component and is useful when values systematically increase or decrease over time.
 
-**Example 1**
+### Triple exponential smoothing
 
-For a simple example, which requires no filtering, we follow [Exponential Smoothing for Time Series Forecasting](https://www.geeksforgeeks.org/artificial-intelligence/exponential-smoothing-for-time-series-forecasting/) which works from the *AirPassengers.csv* dataset. We selected this via the *Local CSV* option (*Currency Rates* are also available).
+Also known as Holt-Winters. Adds both trend and seasonality.
 
-The plot will be displayed, as well as the option to select the axes when there are choices available.
+### Auto-ARIMA
 
-![](https://raw.githubusercontent.com/steviecurran/time-series-toolkit/refs/heads/main/AP2.png)
+Automatically searches for an ARIMA specification using the observed autocorrelation structure.
 
-There is then the option to filter the data, which is not necessary here but see Example 2.
+### Prophet
 
-![](https://raw.githubusercontent.com/steviecurran/time-series-toolkit/refs/heads/main/AP3.png)
+Designed for changing trends, missing observations and optional national-holiday effects.
 
+## Forecast evaluation
 
-You can then:
+### RMSE
 
-- Resample the data, e.g. from *days* to *business days* (this will generally remove any "no frequency information" warning). 
-- Choose the forecast algorithm - *Prophet* includes the options to model holidays for some countries
-- Select the length of the forecast
-- Have the option to test the forecast from historical data. This reserves the most recent  data, according to the forecast length, to  be compared directly with the predicted values. That is, how well the model performs on unseen data
-	- The result is quantified via the *Root Mean Square Error*, RMSE = $\sqrt{\frac{1}{n}\sum_{i=1}^n(\hat{y} - y_i)^2}$. 
- - The normalised percentage difference, which scales the RMSE over the mean value of the observed data over the forecast period, NPD $\equiv 100\times{\rm RMSE}/\mu_{\rm actual}$.
-- Zoom in on the forecast range for closer inspection
+Root mean squared error measures prediction error in the same units as the original series:
 
-E.g. in the following, where the triple exponential method has been used to make 12 month forecast we can compare this with how the data actually evolved over this period. This offers the option of saying "*well the forecast was pretty accurate, just 3.6% out, maybe I can trust it to forecast the next 12 months*".
+$ \mathrm{RMSE} =\sqrt{\frac{1}{n}\sum_{i=1}^{n}(\hat{y}_i-y_i)^2}$
 
-![](https://raw.githubusercontent.com/steviecurran/time-series-toolkit/refs/heads/main/AP4.png)
+Lower values indicate smaller errors, but the value must be interpreted relative to the scale of the data.
 
+### NPD
 
-**Example 2**
+The normalised percentage difference expresses RMSE relative to the mean absolute observed value during the test period:
 
-The historical stock price data, *all\_stocks\_5yr.csv*, used by  [Master Simple Exponential Smoothing for Time Series Forecasting](https://www.youtube.com/watch?v=dewSsfXxA2Q) does require  filtering. I have merged this with another dataset into *all_stocks_5yr+names.csv*, where the *Security* field has the registered name of the company.
+$\mathrm{NPD}=100\times\frac{\mathrm{RMSE}}{\mathrm{mean}(|y_{\mathrm{actual}}|)}$
 
-Following their example, we can plot the closing price against the date, but obtain the following. 
+The app uses this broad interpretation:
 
-![](https://raw.githubusercontent.com/steviecurran/time-series-toolkit/refs/heads/main/stocks2.png)
+| NPD | Interpretation |
+|---:|---|
+| Below 5% | Excellent |
+| 5% to below 10% | Good |
+| 10% to below 20% | Reasonable |
+| 20% or more | Poor |
 
+These are heuristic labels rather than universal performance thresholds.
 
-This is because the closing prices for all 505 companies are shown. We can use the drag down menu to select the name of the company we want.
+## Example 1: Air passengers
 
-![](https://raw.githubusercontent.com/steviecurran/time-series-toolkit/refs/heads/main/stocks3.png)
+`AirPassengers.csv` provides a monthly series with trend and seasonality. A typical workflow is to compare Holt-Winters, ARIMA and Prophet, backtest the latest 12 months, and inspect RMSE and NPD.
 
-Resampling from days to business days, auto ARIMA gives the forecast below. 
-![](https://raw.githubusercontent.com/steviecurran/time-series-toolkit/refs/heads/main/stocks4.png)
+## Example 2: Stock prices
 
-Which, like the simple exponential sample at [Master Simple Exponential Smoothing for Time Series Forecasting](https://www.youtube.com/watch?v=dewSsfXxA2Q), fails to accurately forecast the drop suffered by all companies over this period (driven by rising bond yields, fears on inflation and a crypto crash).
+`all_stocks_5yr+names.csv` contains historical prices for many companies. Use the optional filter to select one company and resample to business days if required.
 
-This demonstrates that even well-performing models can fail under changing conditions, reinforcing the importance of evaluating models beyond in-sample fit.
+This example illustrates an important limitation: a model can fit historical patterns well but still fail during sudden market changes.
 
+## Example 3: Currency rates
 
+The currency option downloads recent exchange-rate observations. Plot labels identify the rate explicitly, for example:
 
+```text
+NZD per GBP
+```
+
+The requested calendar period may contain fewer observations because weekends and market holidays are excluded.
+
+## Dependencies
+
+- Streamlit
+- NumPy
+- pandas
+- Matplotlib
+- statsmodels
+- yfinance
+- pmdarima
+- Prophet
+
+`pmdarima` contains compiled extensions. Use the Python and NumPy versions specified in `requirements.txt`.
+
+## Limitations
+
+- Forecasts are not guarantees and may fail during structural breaks.
+- Backtest results depend on the selected horizon and historical period.
+- Interpolation during resampling can introduce synthetic observations.
+- The heuristic NPD labels should not replace domain-specific acceptance criteria.
+- No rolling-origin cross-validation is currently implemented.
+
+## Future improvements
+
+- Rolling-origin cross-validation
+- Forecast intervals
+- Additional baseline models
+- Model-comparison table
+- Residual diagnostics
+- Automated tests
+- Continuous integration
+
+## Licence
+
+This project is released under the MIT Licence.
