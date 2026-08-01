@@ -11,7 +11,7 @@ The toolkit helps analysts and data scientists compare forecasting approaches, t
 Add the deployed Streamlit URL here:
 
 ```text
-https://YOUR-APP-NAME.streamlit.app
+https://time-series-toolkit.streamlit.app
 ```
 
 ## Features
