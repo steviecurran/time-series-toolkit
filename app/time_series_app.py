@@ -772,105 +772,6 @@ default_zoom_index = max(
     - max(60, forecast_length * 4),
 )
 
-# ---------------------------------------------------------------------
-# Final plot zoom
-# ---------------------------------------------------------------------
-
-st.markdown(
-    "<p style='font-size: 20px; font-weight: bold; "
-    "margin-bottom: 5px;'>Final plot zoom</p>",
-    unsafe_allow_html=True,
-)
-
-maximum_history = len(
-    prepared_series
-)
-
-default_history = min(
-    maximum_history,
-    max(
-        60,
-        int(forecast_length) * 4,
-    ),
-)
-
-zoom_row = st.columns(
-    [2.2, 1.0]
-)
-
-with zoom_row[0]:
-
-    history_length = st.slider(
-        "Historical observations displayed",
-        min_value=1,
-        max_value=maximum_history,
-        value=default_history,
-        step=1,
-        key="history_length_slider",
-    )
-
-    zoom_start = prepared_series.index[
-        -history_length
-    ]
-
-with zoom_row[1]:
-
-    y_axis_mode = st.selectbox(
-        "Y-axis range",
-        [
-            "Automatic",
-            "Manual",
-        ],
-        index=0,
-    )
-
-manual_y_min = None
-manual_y_max = None
-
-if y_axis_mode == "Manual":
-
-    visible_values = prepared_series.loc[
-        zoom_start:
-    ]
-
-    default_y_min = float(
-        visible_values.min()
-    )
-
-    default_y_max = float(
-        visible_values.max()
-    )
-
-    if default_y_min == default_y_max:
-        default_y_min -= 0.5
-        default_y_max += 0.5
-
-    y_range_columns = st.columns(2)
-
-    with y_range_columns[0]:
-
-        manual_y_min = st.number_input(
-            "Minimum y-value",
-            value=default_y_min,
-            format="%.6f",
-        )
-
-    with y_range_columns[1]:
-
-        manual_y_max = st.number_input(
-            "Maximum y-value",
-            value=default_y_max,
-            format="%.6f",
-        )
-
-    if manual_y_min >= manual_y_max:
-
-        st.error(
-            "The minimum y-value must be lower "
-            "than the maximum y-value."
-        )
-
-        st.stop()
 
 # ---------------------------------------------------------------------
 # Run model
@@ -1195,6 +1096,106 @@ else:
         "Final forecast value",
         f"{result['forecast'].iloc[-1]:.4f}",
     )
+
+# ---------------------------------------------------------------------
+# Final plot zoom
+# ---------------------------------------------------------------------
+
+st.markdown(
+    "<p style='font-size: 20px; font-weight: bold; "
+    "margin-bottom: 5px;'>Final plot zoom</p>",
+    unsafe_allow_html=True,
+)
+
+maximum_history = len(
+    prepared_series
+)
+
+default_history = min(
+    maximum_history,
+    max(
+        60,
+        int(forecast_length) * 4,
+    ),
+)
+
+zoom_row = st.columns(
+    [2.2, 1.0]
+)
+
+with zoom_row[0]:
+
+    history_length = st.slider(
+        "Historical observations displayed",
+        min_value=1,
+        max_value=maximum_history,
+        value=default_history,
+        step=1,
+        key="history_length_slider",
+    )
+
+    zoom_start = prepared_series.index[
+        -history_length
+    ]
+
+with zoom_row[1]:
+
+    y_axis_mode = st.selectbox(
+        "Y-axis range",
+        [
+            "Automatic",
+            "Manual",
+        ],
+        index=0,
+    )
+
+manual_y_min = None
+manual_y_max = None
+
+if y_axis_mode == "Manual":
+
+    visible_values = prepared_series.loc[
+        zoom_start:
+    ]
+
+    default_y_min = float(
+        visible_values.min()
+    )
+
+    default_y_max = float(
+        visible_values.max()
+    )
+
+    if default_y_min == default_y_max:
+        default_y_min -= 0.5
+        default_y_max += 0.5
+
+    y_range_columns = st.columns(2)
+
+    with y_range_columns[0]:
+
+        manual_y_min = st.number_input(
+            "Minimum y-value",
+            value=default_y_min,
+            format="%.6f",
+        )
+
+    with y_range_columns[1]:
+
+        manual_y_max = st.number_input(
+            "Maximum y-value",
+            value=default_y_max,
+            format="%.6f",
+        )
+
+    if manual_y_min >= manual_y_max:
+
+        st.error(
+            "The minimum y-value must be lower "
+            "than the maximum y-value."
+        )
+
+        st.stop()
 
 
 forecast_figure = ts.make_forecast_plot(
